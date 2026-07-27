@@ -7,7 +7,7 @@ from pathlib import Path
 # ==========================
 
 INPUT_DIR = "examples"
-OUTPUT_DIR = "Results/floodFillResults"
+OUTPUT_DIR = "Results/straightFloodFillResults"
 
 Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
@@ -37,9 +37,22 @@ for ext in extensions:
             10,
         )
 
-        # Close small gaps in borders
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+        # ------------------------------------------------
+        # Isolate long straight lines (box borders), discard text blobs
+        # ------------------------------------------------
+
+        # Long thin kernels: only survive if a run of white pixels is at least this long
+        horiz_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 1))
+        vert_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 25))
+
+        horiz_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, horiz_kernel)
+        vert_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, vert_kernel)
+
+        lines_only = cv2.bitwise_or(horiz_lines, vert_lines)
+
+        # Reconnect small gaps between line segments (corners, dashed lines)
+        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        closed = cv2.morphologyEx(lines_only, cv2.MORPH_CLOSE, close_kernel, iterations=2)
 
         # ------------------------------------------------
         # Flood fill from top-left (outside)
@@ -75,7 +88,10 @@ for ext in extensions:
         # Filter contours by area first, then draw each with a distinct color
         filtered = [c for c in contours if cv2.contourArea(c) >= MIN_AREA]
         for idx, c in enumerate(filtered):
-            # Use HSV hue wheel to pick visually distinct colors
+            # Approximate contour with straight line segments (preserves concave/L shapes)
+            epsilon = 0.01 * cv2.arcLength(c, True)   # tweak 0.005–0.02 to taste
+            c = cv2.approxPolyDP(c, epsilon, True)
+
             hsv_color = np.uint8([[[int((idx * 180) / max(1, len(filtered))), 255, 255]]])
             bgr = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2BGR)[0, 0].tolist()
             color = (int(bgr[0]), int(bgr[1]), int(bgr[2]))

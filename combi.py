@@ -122,7 +122,6 @@ for img_path in sorted(Path(INPUT_DIR).glob("*")):
     if img is None:
         continue
 
-    start_time = time.perf_counter()
     color_boxes = get_color_boxes(img)
     flood_boxes = get_flood_boxes(img)
     all_boxes = color_boxes + flood_boxes
@@ -145,8 +144,7 @@ for img_path in sorted(Path(INPUT_DIR).glob("*")):
         cv2.rectangle(result, (x, y), (x + w, y + h), color, 3)
         cv2.putText(result, str(idx + 1), (x + 5, y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-    elapsed = time.perf_counter() - start_time
     cv2.imwrite(str(Path(OUTPUT_DIR) / img_path.name), result)
-    print(f"{img_path.name}: {len(final_boxes)} final boxes in {elapsed:.2f}s")
+    print(f"{img_path.name}: {len(final_boxes)} final boxes")
 
 print("Done.")
